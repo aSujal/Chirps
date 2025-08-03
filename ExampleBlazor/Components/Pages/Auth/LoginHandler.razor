@@ -1,0 +1,69 @@
+﻿@page "/login-handler"
+@using ExampleBlazor.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@inject UserService UserService
+@inject NavigationManager _navigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+@code {
+	[SupplyParameterFromQuery] public string? Username { get; set; }
+	[SupplyParameterFromQuery] public string? Password { get; set; }
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (!string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password))
+		{
+			try
+			{
+				var user = await UserService.LoginAsync(Username, Password);
+
+				if (user != null)
+				{
+					var claims = new List<Claim>
+					{
+						new Claim(ClaimTypes.Name, user.Username),
+						new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+						new Claim("IsAdmin", user.IsAdmin.ToString())
+					};
+
+					var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+					var authProperties = new AuthenticationProperties
+					{
+						IsPersistent = true,
+						ExpiresUtc = DateTimeOffset.UtcNow.AddDays(2)
+					};
+
+					// Ensure HttpContext is not null before calling SignInAsync
+					if (HttpContextAccessor.HttpContext != null)
+					{
+						await HttpContextAccessor.HttpContext.SignInAsync(
+							CookieAuthenticationDefaults.AuthenticationScheme,
+							new ClaimsPrincipal(claimsIdentity),
+							authProperties
+						);
+					}
+					else
+					{
+						throw new InvalidOperationException("HttpContext is null. Unable to sign in.");
+					}
+
+					HttpContextAccessor.HttpContext.Response.Redirect("/");
+					return;
+				}
+			}
+			catch (System.Security.SecurityException ex)
+			{
+				_navigationManager.NavigateTo($"/login?error={Uri.EscapeDataString(ex.Message)}", forceLoad: true);
+				return;
+			}
+			catch (Exception ex)
+			{
+				_navigationManager.NavigateTo($"/login?error={Uri.EscapeDataString(ex.Message)}", forceLoad: true);
+				return;
+			}
+		}
+
+		_navigationManager.NavigateTo("/login?error=invalid", forceLoad: true);
+	}
+}

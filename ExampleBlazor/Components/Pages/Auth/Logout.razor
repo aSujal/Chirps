@@ -1,0 +1,24 @@
+﻿@page "/logout"
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Components.Authorization
+
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Logging out...</h3>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        StateHasChanged();
+        Navigation.NavigateTo("/", true);
+    }
+}

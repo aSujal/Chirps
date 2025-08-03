@@ -1,9 +1,12 @@
 using ExampleBlazor;
 using ExampleBlazor.Components;
 using ExampleBlazor.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Security.Claims;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,7 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
 //builder.Services.AddScoped<TicketService>();
 //builder.Services.AddScoped<SprintService>();
 
@@ -22,14 +26,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.Cookie.Name = "auth_token";
+        options.AccessDeniedPath = "/login";
         options.LoginPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(2);
         options.Cookie.MaxAge = TimeSpan.FromDays(2);
-        options.AccessDeniedPath = "/access-denied";
     });
+
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
-builder.Services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+//builder.Services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+
 
 var app = builder.Build();
 
@@ -45,6 +52,9 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
