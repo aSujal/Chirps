@@ -1,0 +1,249 @@
+﻿@* Components/Pages/Inventory/Transactions.razor *@
+@attribute [Authorize]
+@page "/inventory/transactions"
+@using ExampleBlazor.Services
+@using ExampleBlazor.Models
+@using Microsoft.AspNetCore.Authorization
+@inject StockTransactionService StockTransactionService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Stock Transactions</PageTitle>
+
+<div class="p-6">
+	<div class="mb-8 flex items-center justify-between">
+		<h1 class="text-3xl font-bold text-white">Stock Transactions</h1>
+		<a href="/inventory/transactions/create" class="flex items-center rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700">
+			<i class="fa-solid fa-plus mr-2"></i> New Transaction
+		</a>
+	</div>
+
+	<!-- Filter Buttons -->
+	<div class="mb-6 flex flex-wrap gap-3">
+		<button @onclick="() => FilterTransactions(null)"
+				class="px-4 py-2 rounded-lg transition-colors @(selectedFilter == null ? "bg-purple-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600")">
+			<i class="fa-solid fa-list mr-2"></i>All
+		</button>
+		<button @onclick="() => FilterTransactions(TransactionType.StockIn)"
+				class="px-4 py-2 rounded-lg transition-colors @(selectedFilter == TransactionType.StockIn ? "bg-green-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600")">
+			<i class="fa-solid fa-arrow-up mr-2"></i>Stock In
+		</button>
+		<button @onclick="() => FilterTransactions(TransactionType.StockOut)"
+				class="px-4 py-2 rounded-lg transition-colors @(selectedFilter == TransactionType.StockOut ? "bg-red-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600")">
+			<i class="fa-solid fa-arrow-down mr-2"></i>Stock Out
+		</button>
+		<button @onclick="() => FilterTransactions(TransactionType.Adjustment)"
+				class="px-4 py-2 rounded-lg transition-colors @(selectedFilter == TransactionType.Adjustment ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600")">
+			<i class="fa-solid fa-wrench mr-2"></i>Adjustments
+		</button>
+	</div>
+
+	@if (isLoading)
+	{
+		<div class="flex h-64 items-center justify-center">
+			<i class="fa-solid fa-spinner fa-spin text-4xl text-purple-400"></i>
+		</div>
+	}
+	else if (!string.IsNullOrEmpty(errorMessage))
+	{
+		<div class="mb-6 flex items-center rounded-lg border border-red-700 bg-red-900 px-4 py-3 text-red-300">
+			<i class="fa-solid fa-circle-exclamation mr-2"></i>
+			@errorMessage
+		</div>
+	}
+	else
+	{
+		<div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
+			@if (filteredTransactions.Any())
+			{
+				<div class="overflow-x-auto">
+					<table class="w-full">
+						<thead class="bg-gray-900">
+							<tr>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Date</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Article</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Type</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Quantity</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Unit Price</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Total Value</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Notes</th>
+								<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-700">
+							@foreach (var transaction in filteredTransactions)
+							{
+								<tr class="transition-colors hover:bg-gray-700">
+									<td class="whitespace-nowrap px-6 py-4 text-gray-300">
+										@transaction.Date.ToString("MMM dd, yyyy")
+									</td>
+									<td class="whitespace-nowrap px-6 py-4">
+										<div>
+											<div class="font-semibold text-white">@transaction.Article.ArticleNumber</div>
+											<div class="text-sm text-gray-400">@transaction.Article.Name</div>
+										</div>
+									</td>
+									<td class="whitespace-nowrap px-6 py-4">
+										<span class="rounded-full px-2 py-1 text-xs font-semibold @GetTransactionTypeClass(transaction.Type)">
+											@GetTransactionTypeIcon(transaction.Type) @GetTransactionTypeDisplay(transaction.Type)
+										</span>
+									</td>
+									<td class="whitespace-nowrap px-6 py-4 text-gray-300">
+										@transaction.Quantity
+									</td>
+									<td class="whitespace-nowrap px-6 py-4 text-gray-300">
+										@transaction.UnitPrice.ToString("C")
+									</td>
+									<td class="whitespace-nowrap px-6 py-4 text-gray-300">
+										@transaction.TotalValue.ToString("C")
+									</td>
+									<td class="px-6 py-4 text-gray-300">
+										@if (!string.IsNullOrEmpty(transaction.Notes))
+										{
+											if (transaction.Notes.Length > 30)
+											{
+												<span title="@transaction.Notes">@transaction.Notes.Substring(0, 30)...</span>
+											}
+											else
+											{
+												@transaction.Notes
+											}
+										}
+										else
+										{
+											<span class="text-gray-500">-</span>
+										}
+									</td>
+									<td class="whitespace-nowrap px-6 py-4">
+										<button class="rounded bg-red-600 p-2 text-white transition-colors hover:bg-red-700"
+												@onclick="() => DeleteTransaction(transaction.Id)"
+												title="Delete">
+											<i class="fa-solid fa-trash"></i>
+										</button>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			else
+			{
+				<div class="py-16 text-center">
+					<i class="fa-solid fa-arrow-right-arrow-left mb-4 text-6xl text-gray-500"></i>
+					<h3 class="mb-2 text-xl font-semibold text-gray-300">No transactions found</h3>
+					<p class="mb-6 text-gray-400">
+						@if (selectedFilter.HasValue)
+						{
+							<span>No @GetTransactionTypeDisplay(selectedFilter.Value).ToLower() transactions found.</span>
+						}
+						else
+						{
+							<span>Start by creating your first stock transaction.</span>
+						}
+					</p>
+					<a href="/inventory/transactions/create" class="inline-flex items-center rounded-lg bg-purple-600 px-6 py-3 text-white transition-colors hover:bg-purple-700">
+						<i class="fa-solid fa-plus mr-2"></i> Create Transaction
+					</a>
+				</div>
+			}
+		</div>
+	}
+</div>
+
+@code {
+	private List<StockTransaction> allTransactions = new();
+	private List<StockTransaction> filteredTransactions = new();
+	private bool isLoading = true;
+	private string? errorMessage;
+	private TransactionType? selectedFilter = null;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadTransactions();
+	}
+
+	private async Task LoadTransactions()
+	{
+		isLoading = true;
+		errorMessage = null;
+
+		try
+		{
+			allTransactions = await StockTransactionService.GetAllTransactionsAsync();
+			FilterTransactions(selectedFilter);
+		}
+		catch (Exception ex)
+		{
+			errorMessage = $"Error loading transactions: {ex.Message}";
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
+
+	private void FilterTransactions(TransactionType? filter)
+	{
+		selectedFilter = filter;
+
+		if (filter.HasValue)
+		{
+			filteredTransactions = allTransactions.Where(t => t.Type == filter.Value).ToList();
+		}
+		else
+		{
+			filteredTransactions = allTransactions.ToList();
+		}
+	}
+
+	private async Task DeleteTransaction(int id)
+	{
+		if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this transaction? This action cannot be undone."))
+		{
+			try
+			{
+				await StockTransactionService.DeleteTransactionAsync(id);
+				await LoadTransactions();
+			}
+			catch (Exception ex)
+			{
+				errorMessage = $"Error deleting transaction: {ex.Message}";
+			}
+		}
+	}
+
+	private string GetTransactionTypeClass(TransactionType type)
+	{
+		return type switch
+		{
+			TransactionType.StockIn => "bg-green-600 text-white",
+			TransactionType.StockOut => "bg-red-600 text-white",
+			TransactionType.Adjustment => "bg-blue-600 text-white",
+			_ => "bg-gray-600 text-white"
+		};
+	}
+
+	private string GetTransactionTypeIcon(TransactionType type)
+	{
+		return type switch
+		{
+			TransactionType.StockIn => "↗",
+			TransactionType.StockOut => "↘",
+			TransactionType.Adjustment => "⚡",
+			_ => "•"
+		};
+	}
+
+	private string GetTransactionTypeDisplay(TransactionType type)
+	{
+		return type switch
+		{
+			TransactionType.StockIn => "Stock In",
+			TransactionType.StockOut => "Stock Out",
+			TransactionType.Adjustment => "Adjustment",
+			_ => type.ToString()
+		};
+	}
+}

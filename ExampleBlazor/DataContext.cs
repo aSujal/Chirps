@@ -8,7 +8,8 @@ public class DataContext : DbContext
 {
     // Define DbSets for your entities
     public DbSet<User> Users { get; set; }
-    // public DbSet<Ticket> Tickets { get; set; }
+    public DbSet<Article> Articles { get; set; }
+    public DbSet<StockTransaction> StockTransactions { get; set; }
 
     public DataContext(DbContextOptions<DataContext> options) : base(options)
     {
@@ -23,6 +24,32 @@ public class DataContext : DbContext
             entity.HasKey(u => u.Id);
             entity.HasIndex(u => u.Username)
             .IsUnique();
+        });
+
+        modelBuilder.Entity<Article>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.HasIndex(a => a.ArticleNumber)
+                .IsUnique();
+            entity.Property(a => a.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+            entity.Property(a => a.Description)
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+        });
+
+        modelBuilder.Entity<StockTransaction>(entity =>
+        {
+            entity.HasKey(st => st.Id);
+            entity.Property(st => st.Notes)
+                .HasMaxLength(500);
+            entity.Property(st => st.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(st => st.Date).HasDefaultValueSql("GETUTCDATE()");
+            entity.HasOne(st => st.Article)
+                .WithMany(a => a.Transactions)
+                .HasForeignKey(st => st.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // examples

@@ -19,8 +19,8 @@ builder.Services.AddDbContext<DataContext>(options =>
 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
-//builder.Services.AddScoped<TicketService>();
-//builder.Services.AddScoped<SprintService>();
+builder.Services.AddScoped<ArticleService>();
+builder.Services.AddScoped<StockTransactionService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
