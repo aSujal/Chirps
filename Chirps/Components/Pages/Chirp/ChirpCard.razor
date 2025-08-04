@@ -1,0 +1,175 @@
+﻿@using Chirps.Models
+@using Chirps.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject LikeService LikeService
+@inject ChirpService ChirpService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+
+<div class="bg-gray-900 rounded-lg p-6 hover:bg-gray-800/50 transition-colors">
+
+	<!-- Header -->
+	<div class="flex items-start justify-between mb-3">
+		<a href="/profile/@Chirp.UserId" class="flex items-center space-x-3 group">
+			<div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+				<span class="text-white font-semibold">@Chirp.User.Username[0].ToString().ToUpper()</span>
+			</div>
+			<div>
+				<p class="text-white font-medium group-hover:text-purple-400 transition-colors">@Chirp.User.Username</p>
+				<p class="text-gray-500 text-sm">@GetRelativeTime(Chirp.CreatedAt)</p>
+			</div>
+		</a>
+	@* 	<AuthorizeView>
+			<Authorized>
+				@if (@context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Chirp.UserId.ToString())
+				{
+					<button @onclick="DeletePost"
+							class="flex items-center p-3 rounded-md hover:bg-red-500/30 transition-colors">
+						<i class="fa-solid fa-trash text-red-500"></i>
+					</button>
+				}
+			</Authorized>
+		</AuthorizeView> *@
+	</div>
+
+	<!-- Content -->
+	<div class="text-gray-300 mb-4 break-words">
+		@RenderChirpContent(Chirp.Content)
+	</div>
+
+	<!-- Actions -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center space-x-4">
+			<AuthorizeView>
+				<Authorized>
+					<button @onclick="ToggleLike"
+							class="flex items-center space-x-2 text-gray-500 hover:text-pink-500 transition-colors">
+						<i class="fa-@(isLiked ? "solid" : "regular") fa-heart @(isLiked ? "text-pink-500" : "")"></i>
+						<span class="@(isLiked ? "text-pink-500" : "")">@likeCount</span>
+					</button>
+				</Authorized>
+				<NotAuthorized>
+					<div class="flex items-center space-x-2 text-gray-500">
+						<i class="fa-regular fa-heart"></i>
+						<span>@Chirp.Likes.Count</span>
+					</div>
+				</NotAuthorized>
+			</AuthorizeView>
+		</div>
+
+		<!-- Peeps -->
+		@if (Chirp.PeepChirps.Any())
+		{
+			<div class="flex flex-wrap gap-2">
+				@foreach (var peepChirp in Chirp.PeepChirps)
+				{
+					<button @onclick="() => OnPeepClick.InvokeAsync(peepChirp.Peep.Text)"
+							class="text-purple-400 hover:text-purple-300 text-sm transition-colors">
+						&lt;@peepChirp.Peep.Text
+					</button>
+				}
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter] public Chirp Chirp { get; set; } = null!;
+	[Parameter] public EventCallback<string> OnPeepClick { get; set; }
+
+	private bool isLiked;
+	private int likeCount;
+	private int userId;
+	private bool isAuthenticated;
+
+	protected override async Task OnInitializedAsync()
+	{
+		var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+		isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+
+		if (isAuthenticated)
+		{
+			var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+			userId = int.Parse(userIdClaim ?? "0");
+			isLiked = Chirp.Likes.Any(l => l.UserId == userId);
+		}
+
+		likeCount = Chirp.Likes.Count;
+	}
+
+	private async Task ToggleLike()
+	{
+		if (!isAuthenticated) return;
+
+		isLiked = await LikeService.ToggleLikeAsync(Chirp.Id, userId);
+		likeCount = await LikeService.GetChirpLikesCountAsync(Chirp.Id);
+	}
+
+	private async Task DeletePost()
+	{
+		if (!isAuthenticated) return;
+		var confirm = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this chirp?");
+		if (confirm)
+		{
+			var result = await ChirpService.DeleteChirpAsync(Chirp.Id);
+		}
+	}
+
+	private RenderFragment RenderChirpContent(string content)
+	{
+		return builder =>
+		{
+			var parts = content.Split('<');
+			builder.AddContent(0, parts[0]);
+
+			for (int i = 1; i < parts.Length; i++)
+			{
+				var peepText = "";
+				var remainingText = "";
+				var foundNonAlphaNum = false;
+
+				foreach (char c in parts[i])
+				{
+					if (!foundNonAlphaNum && char.IsLetterOrDigit(c))
+					{
+						peepText += c;
+					}
+					else
+					{
+						foundNonAlphaNum = true;
+						remainingText += c;
+					}
+				}
+
+				if (peepText.Length >= 3 && peepText.Length <= 16)
+				{
+					builder.OpenElement(1, "span");
+					builder.AddAttribute(2, "class", "text-purple-400 font-medium");
+					builder.AddContent(3, $"<{peepText}");
+					builder.CloseElement();
+					builder.AddContent(4, remainingText);
+				}
+				else
+				{
+					builder.AddContent(5, $"<{parts[i]}");
+				}
+			}
+		};
+	}
+
+	private string GetRelativeTime(DateTime dateTime)
+	{
+		var timeSpan = DateTime.UtcNow - dateTime;
+
+		if (timeSpan.TotalMinutes < 1)
+			return "just now";
+		if (timeSpan.TotalMinutes < 60)
+			return $"{(int)timeSpan.TotalMinutes}m ago";
+		if (timeSpan.TotalHours < 24)
+			return $"{(int)timeSpan.TotalHours}h ago";
+		if (timeSpan.TotalDays < 7)
+			return $"{(int)timeSpan.TotalDays}d ago";
+
+		return dateTime.ToString("MMM d");
+	}
+}

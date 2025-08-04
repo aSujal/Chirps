@@ -1,0 +1,127 @@
+﻿@page "/search"
+@page "/peep/{PeepText}"
+@using Chirps.Components.Pages.Chirp
+@using Chirps.Models
+@using Chirps.Services
+@inject ChirpService ChirpService
+@inject PeepService PeepService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>@(string.IsNullOrEmpty(PeepText) ? "Search" : $"<{PeepText}") - Chirps</PageTitle>
+
+<div class="min-h-screen w-full bg-gray-950">
+	<div class="mx-auto max-w-4xl px-4 py-8">
+		<!-- Header -->
+		<div class="mb-8">
+			<h1 class="text-3xl font-bold text-white mb-4">
+				@if (!string.IsNullOrEmpty(PeepText))
+				{
+					<span>Chirps with <span class="text-purple-400">&lt;@PeepText</span></span>
+				}
+				else
+				{
+					<span>Search Chirps</span>
+				}
+			</h1>
+
+			<!-- Search Box -->
+			<div class="bg-gray-900 rounded-lg p-6">
+				<div class="flex space-x-4">
+					<input type="text"
+						   @bind="searchQuery"
+						   @bind:event="oninput"
+						   placeholder="Search for peeps..."
+						   class="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+					<button @onclick="SearchPeeps"
+							class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
+						<i class="fa-solid fa-search mr-2"></i>Search
+					</button>
+				</div>
+
+				@if (suggestedPeeps.Any())
+				{
+					<div class="mt-4">
+						<p class="text-gray-400 text-sm mb-2">Suggested peeps:</p>
+						<div class="flex flex-wrap gap-2">
+							@foreach (var peep in suggestedPeeps)
+							{
+								<button @onclick="() => SelectPeep(peep)"
+										class="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-lg text-sm transition-colors">
+									&lt;@peep
+								</button>
+							}
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+
+		<!-- Results -->
+		<div class="space-y-4">
+			@if (isLoading)
+			{
+				<div class="text-center py-16">
+					<i class="fa-solid fa-spinner fa-spin text-4xl text-purple-500"></i>
+				</div>
+			}
+			else if (chirps != null && chirps.Any())
+			{
+				<p class="text-gray-400 mb-4">Found @chirps.Count chirp(s)</p>
+				@foreach (var chirp in chirps)
+				{
+					<ChirpCard Chirp="chirp" OnPeepClick="SelectPeep" />
+				}
+			}
+			else if (hasSearched)
+			{
+				<div class="bg-gray-900 rounded-lg p-8 text-center">
+					<i class="fa-solid fa-search text-4xl text-gray-600 mb-4"></i>
+					<p class="text-gray-400">No chirps found with this peep</p>
+				</div>
+			}
+		</div>
+	</div>
+</div>
+
+@code {
+	[Parameter] public string? PeepText { get; set; }
+
+	private string searchQuery = "";
+	private List<Chirps.Models.Chirp>? chirps;
+	private List<string> suggestedPeeps = new();
+	private bool isLoading = false;
+	private bool hasSearched = false;
+
+	protected override async Task OnParametersSetAsync()
+	{
+		if (!string.IsNullOrEmpty(PeepText))
+		{
+			searchQuery = PeepText;
+			await SearchPeeps();
+		}
+		suggestedPeeps = await PeepService.GetTrendingPeepsAsync();
+	}
+
+	private async Task SearchPeeps()
+	{
+		if (string.IsNullOrWhiteSpace(searchQuery)) return;
+
+		isLoading = true;
+		hasSearched = true;
+
+		try
+		{
+			chirps = await ChirpService.GetChirpsByPeepAsync(searchQuery.Trim());
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
+
+	private void SelectPeep(string peep)
+	{
+		Navigation.NavigateTo($"/peep/{peep}");
+	}
+}

@@ -1,0 +1,129 @@
+﻿@attribute [Authorize]
+@page "/profile/{UserId:int}"
+@using Chirps.Components.Pages.Chirp
+@using Chirps.Models
+@using Chirps.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject UserService UserService
+@inject ChirpService ChirpService
+@inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>@(user?.Username ?? "Profile") - Chirps</PageTitle>
+
+<div class="min-h-screen w-full bg-gray-950">
+	<div class="mx-auto max-w-4xl px-4 py-8">
+		@if (user == null)
+		{
+			<div class="text-center py-16">
+				<i class="fa-solid fa-spinner fa-spin text-4xl text-purple-500"></i>
+			</div>
+		}
+		else
+		{
+			<!-- Profile Header -->
+			<div class="bg-gray-900 rounded-lg p-8 mb-6">
+				<div class="flex items-start justify-between mb-6">
+					<div class="flex items-center space-x-4">
+						<div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+							<span class="text-white text-3xl font-bold">@user.Username[0].ToString().ToUpper()</span>
+						</div>
+						<div>
+							<h1 class="text-2xl font-bold text-white">@user.Username</h1>
+							<p class="text-gray-400">Member since @user.CreatedAt.ToString("MMMM yyyy")</p>
+						</div>
+					</div>
+					@* <AuthorizeView>
+						<Authorized>
+							@if (isOwnProfile)
+							{
+								<button class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors">
+									<i class="fa-solid fa-edit mr-2"></i>Edit Profile
+								</button>
+							}
+						</Authorized>
+					</AuthorizeView> *@
+				</div>
+
+				@if (!string.IsNullOrEmpty(user.Description))
+				{
+					<p class="text-gray-300 mb-6">@user.Description</p>
+				}
+
+				<!-- Stats -->
+				<div class="grid grid-cols-3 gap-4 pt-6 border-t border-gray-800">
+					<div class="text-center">
+						<p class="text-2xl font-bold text-white">@userStats?.ChirpCount</p>
+						<p class="text-gray-400 text-sm">Chirps</p>
+					</div>
+					<div class="text-center">
+						<p class="text-2xl font-bold text-white">@userStats?.LikesReceived</p>
+						<p class="text-gray-400 text-sm">Likes Received</p>
+					</div>
+					<div class="text-center">
+						<p class="text-2xl font-bold text-white">@userStats?.LikesGiven</p>
+						<p class="text-gray-400 text-sm">Likes Given</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Recent Chirps -->
+			<div class="space-y-4">
+				<h2 class="text-xl font-semibold text-white mb-4">Recent 5 Chirps</h2>
+				<div class="max-h-[450px] overflow-y-auto pr-2 space-y-4  scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+					@if (recentChirps == null)
+					{
+						<div class="text-center py-8">
+							<i class="fa-solid fa-spinner fa-spin text-2xl text-purple-500"></i>
+						</div>
+					}
+					else if (!recentChirps.Any())
+					{
+						<div class="bg-gray-900 rounded-lg p-8 text-center">
+							<i class="fa-solid fa-comment-slash text-4xl text-gray-600 mb-4"></i>
+							<p class="text-gray-400">No chirps yet</p>
+						</div>
+					}
+					else
+					{
+						@foreach (var chirp in recentChirps)
+						{
+							<ChirpCard Chirp="chirp" />
+						}
+					}
+				</div>
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public int UserId { get; set; }
+
+	private User? user;
+	private UserStats? userStats;
+	private List<Chirp>? recentChirps;
+	private bool isOwnProfile;
+
+	protected override async Task OnParametersSetAsync()
+	{
+		await LoadUserData();
+	}
+
+	private async Task LoadUserData()
+	{
+		user = await UserService.GetUserByIdAsync(UserId);
+
+		if (user != null)
+		{
+			userStats = await UserService.GetUserStatsAsync(UserId);
+			recentChirps = await UserService.GetUserRecentChirpsAsync(UserId, 5);
+
+			var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+			var currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+			isOwnProfile = currentUserId == UserId.ToString();
+		}
+	}
+}

@@ -1,0 +1,19 @@
+﻿## TODO:
+- [x] Dokumentation der Projektstruktur
+- [x] Skizze des Datenmodells
+- [x] Datenbank Models erstellen
+- [x] Authentifizierung implementieren
+- [x] Sidebar erstellen
+- [x] Skizze des Wireframes
+- [x] Chirps Erstellen
+- [x] Peeps erstellen
+- [x] Homepage erstellen
+- [x] Chirps anzeigen
+- [x] Nach Peeps filtern
+- [x] Liken und Entliken von Chirps
+- [x] Profilseite erstellen
+- [x] Recent Chirps anzeigen
+- [x] Chirps liste scrollable machen
+- [x] Suche Page erstellen
+- [x] Häufigsten Peeps der letzten 24h anzeigen
+- [x] Testing

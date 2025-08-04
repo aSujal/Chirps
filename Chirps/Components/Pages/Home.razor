@@ -1,0 +1,209 @@
+﻿@page "/"
+@using Chirps.Components.Pages.Chirp
+@using Chirps.Models
+@using Chirps.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ChirpService ChirpService
+@inject PeepService PeepService
+@inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>Chirps - Home</PageTitle>
+
+<div class="min-h-screen w-full bg-gray-950">
+	<div class="mx-auto max-w-4xl px-4 py-8 max-h-screen overflow-y-auto md:overflow-hidden pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+		<!-- Header -->
+		<div class="mb-8 text-center">
+			<h1 class="text-4xl font-bold text-white mb-2">
+				<i class="fa-solid fa-dove text-purple-500"></i> Chirps
+			</h1>
+			<p class="text-gray-400">Chirp in 123 characters or less</p>
+		</div>
+
+		<div class="grid grid-cols-1 gap-6">
+			<!-- Main Content -->
+			<div class="space-y-6">
+				<!-- Create Chirp (for authenticated users) -->
+				<AuthorizeView>
+					<Authorized>
+						<CreateChirp OnChirpCreated="LoadChirps" />
+					</Authorized>
+				</AuthorizeView>
+				<!-- Mobile -->
+				<div class="lg:hidden space-y-4">
+					<!-- Trending Peeps (Mobile) -->
+					<div class="bg-gray-900 rounded-lg p-4">
+						<h3 class="text-white font-semibold mb-2">
+							<i class="fa-solid fa-fire text-orange-500"></i> Last 24 hours
+						</h3>
+						@if (trendingPeeps?.Any() == true)
+						{
+							<div class="flex flex-wrap gap-2">
+								@foreach (var peep in trendingPeeps)
+								{
+									<button @onclick="() => FilterByPeep(peep)"
+											class="px-3 py-1 text-sm rounded-lg bg-gray-800 hover:bg-gray-700 text-purple-400 transition-colors">
+										&lt;@peep&gt;
+									</button>
+								}
+							</div>
+						}
+					</div>
+				</div>
+
+				<!-- Filter by Peep -->
+				@if (!string.IsNullOrEmpty(selectedPeep))
+				{
+					<div class="bg-gray-900 rounded-lg p-4 flex items-center justify-between">
+						<span class="text-gray-300">
+							Filtering by: <span class="text-purple-400 font-semibold">&lt;@selectedPeep</span>
+						</span>
+						<button @onclick="ClearFilter" class="text-gray-500 hover:text-white transition-colors">
+							<i class="fa-solid fa-times"></i>
+						</button>
+					</div>
+				}
+
+				<!-- Chirps List -->
+				<div class="lg:grid lg:grid-cols-3 lg:gap-6">
+					<div class="lg:col-span-2 space-y-4">
+						<h3 class="text-white sm:text-xl">Last @chirps?.Count Chirps</h3>
+						<div class="max-h-[450px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+							@if (chirps == null)
+							{
+								<div class="text-center py-8">
+									<i class="fa-solid fa-spinner fa-spin text-4xl text-purple-500"></i>
+								</div>
+							}
+							else if (!chirps.Any())
+							{
+								<div class="bg-gray-900 rounded-lg p-8 text-center">
+									<i class="fa-solid fa-inbox text-4xl text-gray-600 mb-4"></i>
+									<p class="text-gray-400">No chirps yet. Be the first to chirp!</p>
+								</div>
+							}
+							else
+							{
+								@foreach (var chirp in chirps)
+								{
+									<ChirpCard Chirp="chirp" OnPeepClick="FilterByPeep" />
+								}
+							}
+						</div>
+					</div>
+
+					<!-- Desktop Sidebar -->
+					<div class="hidden lg:block space-y-6">
+						<!-- User Info (for authenticated users) -->
+						<AuthorizeView>
+							<Authorized>
+								<div class="bg-gray-900 rounded-lg p-6">
+									<h3 class="text-white font-semibold mb-4">Your Profile</h3>
+									<a href="/profile/@context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value"
+									   class="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors">
+										<i class="fa-solid fa-user-circle text-2xl"></i>
+										<span>@context.User.Identity?.Name</span>
+									</a>
+								</div>
+							</Authorized>
+							<NotAuthorized>
+								<div class="bg-gray-900 rounded-lg p-6">
+									<h3 class="text-white font-semibold mb-4">Join Chirps</h3>
+									<p class="text-gray-400 text-sm mb-4">Sign up to create chirps.</p>
+									<div class="space-y-2">
+										<a href="/login" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition-colors">
+											Sign In
+										</a>
+										<a href="/register" class="block w-full text-center border border-purple-600 text-purple-400 hover:bg-purple-600 hover:text-white py-2 rounded-lg transition-colors">
+											Create Account
+										</a>
+									</div>
+								</div>
+							</NotAuthorized>
+						</AuthorizeView>
+
+						<!-- Trending Peeps -->
+						<div class="bg-gray-900 rounded-lg p-6">
+							<h3 class="text-white font-semibold mb-4">
+								<i class="fa-solid fa-fire text-orange-500"></i> Last 24 hours
+							</h3>
+							@if (trendingPeeps == null)
+							{
+								<div class="text-center py-4">
+									<i class="fa-solid fa-spinner fa-spin text-purple-500"></i>
+								</div>
+							}
+							else if (!trendingPeeps.Any())
+							{
+								<p class="text-gray-500 text-sm">No trending peeps yet</p>
+							}
+							else
+							{
+								<div class="space-y-2">
+									@foreach (var peep in trendingPeeps)
+									{
+										<button @onclick="() => FilterByPeep(peep)"
+												class="block w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-purple-400 transition-colors">
+											&lt;@peep&gt;
+										</button>
+									}
+								</div>
+							}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private List<Chirps.Models.Chirp>? chirps;
+	private List<string>? trendingPeeps;
+	private string? selectedPeep;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadChirps();
+		await LoadTrendingPeeps();
+	}
+
+	private async Task LoadChirps()
+	{
+		try
+		{
+			if (string.IsNullOrEmpty(selectedPeep))
+			{
+				var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+				var count = authState.User.Identity?.IsAuthenticated == true ? 10 : 5;
+				chirps = await ChirpService.GetRecentChirpsAsync(count);
+			}
+			else
+			{
+				chirps = await ChirpService.GetChirpsByPeepAsync(selectedPeep);
+				int x = 0;
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex?.Message);
+		}
+	}
+
+	private async Task LoadTrendingPeeps()
+	{
+		trendingPeeps = await PeepService.GetTrendingPeepsAsync();
+	}
+
+	private async Task FilterByPeep(string peep)
+	{
+		selectedPeep = peep;
+		await LoadChirps();
+	}
+
+	private async Task ClearFilter()
+	{
+		selectedPeep = null;
+		await LoadChirps();
+	}
+}
