@@ -1,0 +1,130 @@
+﻿@using Chirps.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ChirpService ChirpService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="bg-gray-900 rounded-lg p-6">
+    <h3 class="text-white font-semibold mb-4">Chirp something...</h3>
+    
+    <form @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
+        <div class="relative">
+            <textarea @bind="chirpContent"
+                      @oninput="UpdateCharacterCount"
+                      maxlength="123"
+                      rows="3"
+                      class="w-full bg-gray-800 text-white rounded-lg p-4 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Chirp here... Use < to create a peep!"></textarea>
+            
+            <div class="absolute bottom-2 right-2 text-sm @(characterCount > 100 ? "text-orange-400" : "text-gray-500")">
+                @characterCount/123
+            </div>
+        </div>
+        
+        @if (extractedPeeps.Any())
+        {
+            <div class="mt-2 flex flex-wrap gap-2">
+                @foreach (var peep in extractedPeeps)
+                {
+                    <span class="px-2 py-1 bg-purple-600/20 text-purple-400 rounded text-sm">
+						@peep
+                    </span>
+                }
+            </div>
+        }
+        
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="mt-2 text-red-400 text-sm">
+                <i class="fa-solid fa-exclamation-circle mr-1"></i>
+                @errorMessage
+            </div>
+        }
+        
+        <button type="submit"
+                disabled="@(isSubmitting || string.IsNullOrWhiteSpace(chirpContent))"
+                class="mt-4 w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white py-2 rounded-lg transition-colors">
+            @if (isSubmitting)
+            {
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                <span>Posting...</span>
+            }
+            else
+            {
+                <i class="fa-solid fa-paper-plane mr-2"></i>
+                <span>Chirp</span>
+            }
+        </button>
+    </form>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnChirpCreated { get; set; }
+
+    private string chirpContent = "";
+    private int characterCount = 0;
+    private List<string> extractedPeeps = new();
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        userId = int.Parse(userIdClaim ?? "0");
+    }
+
+    private void UpdateCharacterCount(ChangeEventArgs e)
+    {
+        chirpContent = e.Value?.ToString() ?? "";
+        characterCount = chirpContent.Length;
+        ExtractPeeps();
+    }
+
+    private void ExtractPeeps()
+    {
+        extractedPeeps.Clear();
+        var parts = chirpContent.Split('<');
+
+        for (int i = 1; i < parts.Length; i++)
+        {
+            var peepText = "";
+            foreach (char c in parts[i])
+            {
+                if (char.IsLetterOrDigit(c))
+                    peepText += c;
+                else
+                    break;
+            }
+
+            if (peepText.Length >= 3 && peepText.Length <= 16)
+                extractedPeeps.Add(peepText);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(chirpContent) || isSubmitting)
+            return;
+
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            await ChirpService.CreateChirpAsync(chirpContent.Trim(), userId);
+            chirpContent = "";
+            characterCount = 0;
+            extractedPeeps.Clear();
+            await OnChirpCreated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

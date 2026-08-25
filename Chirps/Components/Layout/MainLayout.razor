@@ -1,0 +1,9 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+
+<main class="flex h-screen w-full bg-gray-950 overflow-hidden">
+	<NavMenu />
+	@Body
+</main>

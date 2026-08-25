@@ -1,0 +1,235 @@
+﻿@page "/register"
+@using Chirps.Models
+@using Chirps.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@inject UserService UserService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Register</PageTitle>
+
+<div class="flex h-full w-full items-center justify-center bg-gray-950 px-4">
+	<div class="w-full max-w-md">
+		<div class="relative overflow-hidden rounded-2xl bg-gray-900/50 shadow-2xl">
+			<div class="p-8 sm:p-10">
+				<div class="mb-8 text-center">
+					<h2 class="mb-2 text-3xl font-bold text-white">Create account</h2>
+					<p class="text-gray-400">Create your profile</p>
+				</div>
+
+				<EditForm Model="@registerModel" OnValidSubmit="@HandleRegister" class="space-y-6">
+					<DataAnnotationsValidator />
+
+					<div class="space-y-1">
+						<label for="username" class="font-mediSum block text-sm text-gray-300">
+							Username
+						</label>
+						<div class="group relative">
+							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+								<i class="fa-solid fa-user text-gray-500 transition-colors group-focus-within:text-purple-400"></i>
+							</div>
+							<InputText @bind-Value="registerModel.Username"
+									   id="username"
+									   class="w-full rounded-lg border border-gray-700 bg-gray-800 py-3 pl-10 pr-3 text-white placeholder-gray-500 transition-all duration-200 hover:border-gray-600 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+									   placeholder="Choose a username" />
+						</div>
+						<ValidationMessage For="@(() => registerModel.Username)" class="mt-1 text-sm text-red-400" />
+					</div>
+
+					<div class="space-y-1">
+						<label for="email" class="block text-sm font-medium text-gray-300">
+							Email
+						</label>
+						<div class="group relative">
+							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+								<i class="fa-solid fa-envelope text-gray-500 transition-colors group-focus-within:text-purple-400"></i>
+							</div>
+							<InputText @bind-Value="registerModel.Email"
+									   type="email"
+									   id="email"
+									   class="w-full rounded-lg border border-gray-700 bg-gray-800 py-3 pl-10 pr-3 text-white placeholder-gray-500 transition-all duration-200 hover:border-gray-600 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+									   placeholder="Enter your email" />
+						</div>
+						<ValidationMessage For="@(() => registerModel.Email)" class="mt-1 text-sm text-red-400" />
+					</div>
+
+					<div class="space-y-1">
+						<label for="password" class="block text-sm font-medium text-gray-300">
+							Password
+						</label>
+						<div class="group relative">
+							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+								<i class="fa-solid fa-lock text-gray-500 transition-colors group-focus-within:text-purple-400"></i>
+							</div>
+							<InputText @bind-Value="registerModel.Password"
+									   type="@(showPassword ? "text" : "password")"
+									   id="password"
+									   class="w-full rounded-lg border border-gray-700 bg-gray-800 py-3 pl-10 pr-10 text-white placeholder-gray-500 transition-all duration-200 hover:border-gray-600 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+									   placeholder="Create a strong password" />
+							<button type="button"
+									@onclick="TogglePasswordVisibility"
+									class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 transition-colors hover:text-gray-300">
+								<i class="fa-solid @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+							</button>
+						</div>
+						<ValidationMessage For="@(() => registerModel.Password)" class="mt-1 text-sm text-red-400" />
+					</div>
+
+					<div class="space-y-1">
+						<label for="confirmPassword" class="block text-sm font-medium text-gray-300">
+							Confirm Password
+						</label>
+						<div class="group relative">
+							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+								<i class="fa-solid fa-lock text-gray-500 transition-colors group-focus-within:text-purple-400"></i>
+							</div>
+							<InputText @bind-Value="registerModel.ConfirmPassword"
+									   type="@(showConfirmPassword ? "text" : "password")"
+									   id="confirmPassword"
+									   class="w-full rounded-lg border border-gray-700 bg-gray-800 py-3 pl-10 pr-10 text-white placeholder-gray-500 transition-all duration-200 hover:border-gray-600 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+									   placeholder="Confirm your password" />
+							<button type="button"
+									@onclick="ToggleConfirmPasswordVisibility"
+									class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 transition-colors hover:text-gray-300">
+								<i class="fa-solid @(showConfirmPassword ? "fa-eye-slash" : "fa-eye")"></i>
+							</button>
+						</div>
+						<ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="mt-1 text-sm text-red-400" />
+					</div>
+
+					<div class="space-y-1">
+						<label for="description" class="block text-sm font-medium text-gray-300">
+							Description <span class="text-gray-500">(optional)</span>
+						</label>
+						<div class="group relative">
+							<div class="pointer-events-none absolute left-0 top-3 flex items-center pl-3">
+								<i class="fa-solid fa-pen text-gray-500 transition-colors group-focus-within:text-purple-400"></i>
+							</div>
+							<InputTextArea @bind-Value="registerModel.Description"
+										   id="description"
+										   rows="3"
+										   class="w-full rounded-lg border border-gray-700 bg-gray-800 py-3 pl-10 pr-3 text-white placeholder-gray-500 transition-all duration-200 hover:border-gray-600 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+										   placeholder="Description..." />
+							<div class="mt-1 text-right text-xs text-gray-500">
+								@registerModel.Description.Length / 300
+							</div>
+						</div>
+						<ValidationMessage For="@(() => registerModel.Description)" class="mt-1 text-sm text-red-400" />
+					</div>
+
+					@if (!string.IsNullOrEmpty(errorMessage))
+					{
+						<div class="flex items-center rounded-lg border border-red-800 bg-red-900/20 px-4 py-3 text-sm text-red-400">
+							<i class="fa-solid fa-exclamation-circle mr-2"></i>
+							@errorMessage
+						</div>
+					}
+
+					@if (!string.IsNullOrEmpty(successMessage))
+					{
+						<div class="flex items-center rounded-lg border border-green-800 bg-green-900/20 px-4 py-3 text-sm text-green-400">
+							<i class="fa-solid fa-check-circle mr-2"></i>
+							@successMessage
+						</div>
+					}
+
+					<button type="submit"
+							disabled="@isLoading"
+							class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 font-medium text-white transition-all duration-200 hover:scale-[1.02] hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-700">
+						<span class="relative flex items-center justify-center">
+							@if (isLoading)
+							{
+								<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+								<span>Creating account...</span>
+							}
+							else
+							{
+								<i class="fa-solid fa-user-plus mr-2"></i>
+								<span>Create account</span>
+							}
+						</span>
+					</button>
+				</EditForm>
+
+				<div class="mt-8 border-t border-gray-800 pt-6">
+					<p class="text-center text-sm text-gray-400">
+						Already have an account?
+						<a href="/login" class="font-medium text-purple-400 transition-colors hover:text-purple-300">
+							Sign in
+						</a>
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private class RegisterModel
+	{
+		[Required(ErrorMessage = "Username is required")]
+		[StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+		[RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores")]
+		public string Username { get; set; } = "";
+
+		[Required(ErrorMessage = "Email is required")]
+		[EmailAddress(ErrorMessage = "Invalid email address")]
+		public string Email { get; set; } = "";
+
+		[Required(ErrorMessage = "Password is required")]
+		[StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters")]
+		public string Password { get; set; } = "";
+
+		[Required(ErrorMessage = "Please confirm your password")]
+		[Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
+		public string ConfirmPassword { get; set; } = "";
+
+		[StringLength(300, ErrorMessage = "Description cannot exceed 300 characters")]
+		public string Description { get; set; } = "";
+	}
+
+	private RegisterModel registerModel = new();
+	private bool showPassword = false;
+	private bool showConfirmPassword = false;
+	private bool isLoading = false;
+	private string? errorMessage;
+	private string? successMessage;
+
+	private void TogglePasswordVisibility()
+	{
+		showPassword = !showPassword;
+	}
+
+	private void ToggleConfirmPasswordVisibility()
+	{
+		showConfirmPassword = !showConfirmPassword;
+	}
+
+	private async Task HandleRegister()
+	{
+		isLoading = true;
+		errorMessage = null;
+		successMessage = null;
+
+		try
+		{
+			var success = await UserService.RegisterUserAsync(registerModel.Username, registerModel.Email, registerModel.Password, registerModel.Description);
+
+			if (success)
+			{
+				successMessage = "Account created successfully! Redirecting to login...";
+				await Task.Delay(2000);
+				Navigation.NavigateTo("/login");
+			}
+		}
+		catch (Exception ex)
+		{
+			errorMessage = ex.Message;
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
+}
